@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gerador de Layout Posicional</title>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: white;
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+
+    header .icon { font-size: 2rem; flex-shrink: 0; }
+    header .header-text { flex: 1; }
+    header h1 { font-size: 1.6rem; font-weight: 600; letter-spacing: 0.5px; }
+    header p  { font-size: 0.85rem; color: #a8b2c8; margin-top: 2px; }
+
+    .lang-switcher {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .lang-btn {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.25);
+      color: rgba(255,255,255,0.7);
+      border-radius: 6px;
+      padding: 5px 11px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s;
+      letter-spacing: 0.4px;
+    }
+
+    .lang-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+    .lang-btn.active { background: white; color: #0f3460; border-color: white; }
+
+    .container { max-width: 960px; margin: 32px auto; padding: 0 24px; }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 28px 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #0f3460;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card h2 .badge {
+      background: #0f3460;
+      color: white;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    /* ── Guia ── */
+    .guide-card { border-left: 4px solid #1a56db; }
+
+    .guide-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .guide-toggle h2 { margin-bottom: 0; cursor: pointer; }
+
+    .guide-arrow { font-size: 1rem; color: #0f3460; transition: transform 0.25s; }
+    .guide-arrow.open { transform: rotate(180deg); }
+
+    .guide-body { margin-top: 20px; }
+
+    .guide-steps { display: flex; flex-direction: column; gap: 14px; }
+
+    .guide-step { display: flex; gap: 14px; align-items: flex-start; }
+
+    .guide-step-num {
+      background: linear-gradient(135deg, #0f3460, #1a56db);
+      color: white;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.82rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .guide-step-content { flex: 1; }
+    .guide-step-title { font-weight: 600; font-size: 0.92rem; color: #1a1a2e; margin-bottom: 3px; }
+    .guide-step-desc { font-size: 0.83rem; color: #5a6a82; line-height: 1.55; }
+
+    .guide-step-desc code {
+      background: #eef3fb;
+      color: #0f3460;
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.82em;
+    }
+
+    .guide-note {
+      margin-top: 18px;
+      background: #f0f4fb;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 0.82rem;
+      color: #3a4a62;
+      line-height: 1.55;
+    }
+
+    /* ── Inputs de configuração CURL ── */
+    .curl-config {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .curl-config-full { grid-column: 1 / -1; }
+
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+
+    .form-group label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #0f3460;
+    }
+
+    .form-group input {
+      border: 1px solid #c0cce0;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.88rem;
+      color: #1a1a2e;
+      outline: none;
+      transition: border-color 0.18s;
+      font-family: inherit;
+    }
+
+    .form-group input:focus { border-color: #1a56db; }
+
+    /* ── Restante ── */
+    .drop-zone {
+      border: 2px dashed #c0cce0;
+      border-radius: 8px;
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #f8fafd;
+      position: relative;
+    }
+
+    .drop-zone:hover, .drop-zone.drag-over { border-color: #0f3460; background: #eef3fb; }
+
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .drop-zone .drop-icon { font-size: 2.2rem; margin-bottom: 8px; }
+    .drop-zone p { color: #5a6a82; font-size: 0.9rem; }
+
+    .drop-zone .file-name {
+      margin-top: 8px;
+      font-size: 0.85rem;
+      color: #0f3460;
+      font-weight: 600;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-top: 10px;
+    }
+
+    .status-pill.success { background: #e6f9ef; color: #1a7a45; }
+    .status-pill.error   { background: #fdecea; color: #c62828; }
+    .status-pill.info    { background: #e8f0fe; color: #1a56db; }
+
+    .fields-preview {
+      margin-top: 16px;
+      max-height: 200px;
+      overflow-y: auto;
+      border-radius: 8px;
+      border: 1px solid #e0e7f0;
+    }
+
+    .fields-preview table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+
+    .fields-preview th {
+      background: #f0f4fb;
+      padding: 8px 12px;
+      text-align: left;
+      color: #0f3460;
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+    }
+
+    .fields-preview td { padding: 6px 12px; border-top: 1px solid #f0f0f0; color: #333; }
+    .fields-preview tr:hover td { background: #f8fafd; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 28px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0f3460, #1a56db);
+      color: white;
+      box-shadow: 0 3px 10px rgba(15,52,96,0.25);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 5px 14px rgba(15,52,96,0.35);
+    }
+
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-success {
+      background: linear-gradient(135deg, #1a7a45, #27ae60);
+      color: white;
+      box-shadow: 0 3px 10px rgba(26,122,69,0.25);
+    }
+
+    .btn-success:hover { transform: translateY(-1px); }
+
+    .btn-secondary {
+      background: #f0f4fb;
+      color: #0f3460;
+      border: 1px solid #c0cce0;
+    }
+
+    .btn-secondary:hover { background: #e2eaf7; }
+
+    .btn-curl {
+      background: linear-gradient(135deg, #6b21a8, #9333ea);
+      color: white;
+      box-shadow: 0 3px 10px rgba(107,33,168,0.25);
+    }
+
+    .btn-curl:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 5px 14px rgba(107,33,168,0.35);
+    }
+
+    .btn-curl:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+
+    .log-box {
+      background: #0d1117;
+      color: #58a6ff;
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      max-height: 180px;
+      overflow-y: auto;
+      margin-top: 16px;
+    }
+
+    .log-box .log-ok   { color: #3fb950; }
+    .log-box .log-warn { color: #f0a84a; }
+    .log-box .log-err  { color: #f85149; }
+    .log-box .log-info { color: #58a6ff; }
+
+    .output-area {
+      background: #1e1e2e;
+      color: #cdd6f4;
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.78rem;
+      line-height: 1.6;
+      max-height: 300px;
+      overflow: auto;
+      white-space: pre;
+      margin-top: 16px;
+      border: 1px solid #313244;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .stat-card {
+      background: #f8fafd;
+      border: 1px solid #e0e7f0;
+      border-radius: 8px;
+      padding: 14px 16px;
+      text-align: center;
+    }
+
+    .stat-card .num { font-size: 1.8rem; font-weight: 700; color: #0f3460; }
+    .stat-card .lbl { font-size: 0.75rem; color: #7a8aa0; margin-top: 4px; }
+
+    .hidden { display: none !important; }
+
+    .progress-bar-wrap {
+      background: #e0e7f0;
+      border-radius: 20px;
+      height: 8px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      border-radius: 20px;
+      background: linear-gradient(90deg, #0f3460, #1a56db);
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+
+    .progress-bar.curl { background: linear-gradient(90deg, #6b21a8, #9333ea); }
+
+    .tooltip { font-size: 0.78rem; color: #8090a8; margin-top: 6px; }
+
+    .send-section-title {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #0f3460;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .auth-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+
+    .auth-status.none    { background: #f0f4fb; color: #7a8aa0; border: 1px solid #c0cce0; }
+    .auth-status.success { background: #e6f9ef; color: #1a7a45; }
+    .auth-status.error   { background: #fdecea; color: #c62828; }
+    .auth-status.loading { background: #fef3c7; color: #78350f; }
+
+    .form-group input[type="password"] { letter-spacing: 2px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="icon">📐</div>
+  <div class="header-text">
+    <h1 data-i18n="headerTitle">Gerador de Layout Posicional</h1>
+    <p data-i18n="headerSubtitle">Gera arquivo de carga com campos em posições fixas a partir de planilhas Excel</p>
+  </div>
+  <div class="lang-switcher">
+    <button class="lang-btn active" onclick="setLang('pt')" id="langPT">PT</button>
+    <button class="lang-btn" onclick="setLang('en')" id="langEN">EN</button>
+    <button class="lang-btn" onclick="setLang('es')" id="langES">ES</button>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Guia -->
+  <div class="card guide-card">
+    <div class="guide-toggle" onclick="toggleGuide()">
+      <h2>
+        <span style="font-size:1.1rem;margin-right:6px">📖</span>
+        <span data-i18n="guideTitle">Como utilizar</span>
+      </h2>
+      <span class="guide-arrow" id="guideArrow">▼</span>
+    </div>
+    <div class="guide-body hidden" id="guideBody">
+      <div class="guide-steps" id="guideSteps"></div>
+      <div class="guide-note" id="guideNote"></div>
+    </div>
+  </div>
+
+  <!-- PASSO 1 -->
+  <div class="card">
+    <h2><span class="badge">1</span><span data-i18n="step1Title">Planilha de Definição de Campos</span></h2>
+    <p class="tooltip" data-i18n="step1Tip"></p>
+    <div class="drop-zone" id="dropCampos">
+      <input type="file" id="fileCampos" accept=".xlsx,.xls,.xlsm" />
+      <div class="drop-icon">📋</div>
+      <p data-i18n="drop1Text">Clique ou arraste o arquivo de <strong>definição de campos</strong> aqui</p>
+      <div class="file-name" id="nameCampos"></div>
+    </div>
+    <div id="statusCampos"></div>
+    <div id="previewCampos" class="hidden"></div>
+  </div>
+
+  <!-- PASSO 2 -->
+  <div class="card">
+    <h2><span class="badge">2</span><span data-i18n="step2Title">Planilha de Massa de Dados</span></h2>
+    <p class="tooltip" data-i18n="step2Tip"></p>
+    <div class="drop-zone" id="dropDados">
+      <input type="file" id="fileDados" accept=".xlsx,.xls,.xlsm" />
+      <div class="drop-icon">📊</div>
+      <p data-i18n="drop2Text">Clique ou arraste o arquivo de <strong>massa de dados</strong> aqui</p>
+      <div class="file-name" id="nameDados"></div>
+    </div>
+    <div id="statusDados"></div>
+    <div id="previewDados" class="hidden"></div>
+  </div>
+
+  <!-- PASSO 3: Layout Posicional -->
+  <div class="card">
+    <h2><span class="badge">3</span><span data-i18n="step3Title">Gerar Layout Posicional</span></h2>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="btnGerar" disabled onclick="gerarLayout()">
+        ⚙️ <span data-i18n="btnGerar">Gerar Layout</span>
+      </button>
+      <button class="btn btn-success hidden" id="btnDownload" onclick="downloadArquivo()">
+        ⬇️ <span data-i18n="btnDownload">Baixar Arquivo .txt</span>
+      </button>
+      <button class="btn btn-secondary hidden" id="btnCopiar" onclick="copiarOutput()">
+        📋 <span data-i18n="btnCopiar">Copiar</span>
+      </button>
+    </div>
+
+    <div class="progress-bar-wrap hidden" id="progressWrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <div class="stats-grid hidden" id="statsGrid">
+      <div class="stat-card"><div class="num" id="statCampos">0</div><div class="lbl" data-i18n="statCampos">Campos</div></div>
+      <div class="stat-card"><div class="num" id="statRegistros">0</div><div class="lbl" data-i18n="statRegistros">Registros</div></div>
+      <div class="stat-card"><div class="num" id="statTamanho">0</div><div class="lbl" data-i18n="statTamanho">Tam. Linha (bytes)</div></div>
+      <div class="stat-card"><div class="num" id="statTruncados">0</div><div class="lbl" data-i18n="statTruncados">Truncamentos</div></div>
+    </div>
+
+    <div class="log-box hidden" id="logBox"></div>
+    <pre class="output-area hidden" id="outputArea"></pre>
+  </div>
+
+  <!-- PASSO 4: CURL -->
+  <div class="card">
+    <h2><span class="badge">4</span><span data-i18n="step4Title">Gerar Comandos cURL</span></h2>
+    <p class="tooltip" data-i18n="step4Tip"></p>
+
+    <!-- Autenticação -->
+    <div style="margin-top:16px;margin-bottom:6px;font-size:0.82rem;font-weight:600;color:#6b21a8;display:flex;align-items:center;gap:6px;">
+      🔑 <span data-i18n="authSectionTitle">Autenticação</span>
+    </div>
+    <div class="curl-config">
+      <div class="form-group curl-config-full">
+        <label data-i18n="labelAuthUrl">URL de Autenticação</label>
+        <input type="text" id="inputAuthUrl" value="https://ynio-dmv.cpqd.com.br/rest/authentication" />
+      </div>
+      <div class="form-group">
+        <label data-i18n="labelUsername">Usuário</label>
+        <input type="text" id="inputUsername" value="cpqd.rodolfo" />
+      </div>
+      <div class="form-group">
+        <label data-i18n="labelPassword">Senha</label>
+        <input type="password" id="inputPassword" value="Q1BxRCtzYWYuMjAxNA==" />
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;margin-bottom:20px;gap:0">
+      <button class="btn btn-secondary" style="padding:8px 18px;font-size:0.85rem" onclick="testarAuth()">
+        🔓 <span data-i18n="btnTestarAuth">Testar Autenticação</span>
+      </button>
+      <span class="auth-status none" id="authStatus" data-i18n="authStatusNone">Não autenticado</span>
+    </div>
+
+    <!-- Transação -->
+    <div style="font-size:0.82rem;font-weight:600;color:#0f3460;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+      📤 <span data-i18n="txSectionTitle">Transação</span>
+    </div>
+    <div class="curl-config">
+      <div class="form-group">
+        <label data-i18n="labelInstitution">Institution Acronym</label>
+        <input type="text" id="inputInstitution" value="TUYA" />
+      </div>
+      <div class="form-group">
+        <label data-i18n="labelEventType">Event Type Code</label>
+        <input type="text" id="inputEventType" value="TUYTRANMON" />
+      </div>
+      <div class="form-group curl-config-full">
+        <label data-i18n="labelUrl">URL da Transação</label>
+        <input type="text" id="inputUrl" value="https://ocih93.aquarius.cpqd.com.br/EventManagerRestAdapter-war/rest/SAF" />
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-curl" id="btnGerarCurl" disabled onclick="gerarCurl()">
+        🌐 <span data-i18n="btnGerarCurl">Gerar cURL</span>
+      </button>
+      <button class="btn btn-success hidden" id="btnDownloadSh" onclick="downloadSh()">
+        🐧 <span data-i18n="btnDownloadSh">Baixar .sh</span>
+      </button>
+      <button class="btn btn-success hidden" id="btnDownloadPs1" onclick="downloadPs1()" style="background:linear-gradient(135deg,#1e3a5f,#2563eb)">
+        🪟 <span data-i18n="btnDownloadPs1">Baixar .ps1</span>
+      </button>
+      <button class="btn btn-success hidden" id="btnDownloadBat" onclick="downloadBat()" style="background:linear-gradient(135deg,#78350f,#d97706)">
+        🖱️ <span data-i18n="btnDownloadBat">Baixar .bat (duplo clique)</span>
+      </button>
+      <button class="btn btn-secondary hidden" id="btnCopiarCurl" onclick="copiarCurl()">
+        📋 <span data-i18n="btnCopiarCurl">Copiar</span>
+      </button>
+    </div>
+
+    <div class="progress-bar-wrap hidden" id="progressWrapCurl">
+      <div class="progress-bar curl" id="progressBarCurl"></div>
+    </div>
+
+    <div class="stats-grid hidden" id="statsGridCurl">
+      <div class="stat-card"><div class="num" id="statCurlRegistros">0</div><div class="lbl" data-i18n="statCurlRegistros">Registros</div></div>
+      <div class="stat-card"><div class="num" id="statCurlCampos">0</div><div class="lbl" data-i18n="statCurlCampos">Campos Mapeados</div></div>
+    </div>
+
+    <div class="log-box hidden" id="logBoxCurl"></div>
+    <pre class="output-area hidden" id="outputAreaCurl"></pre>
+  </div>
+
+</div>
+
+<script>
+  // ─── Traduções ────────────────────────────────────────────────────
+  const i18n = {
+    pt: {
+      headerTitle:    'Gerador de Layout Posicional',
+      headerSubtitle: 'Gera arquivo de carga com campos em posições fixas e comandos cURL a partir de planilhas Excel',
+      guideTitle:     'Como utilizar',
+      step1Title:     'Planilha de Definição de Campos',
+      step1Tip:       'Arquivo <strong>evento_event_transfin_vD.xlsx</strong> (ou similar) — aba <strong>Campos Entrada</strong>, com colunas: Entrada, NomeCampo, TamanhoCampo, AlinhamentoCampo, TipoCampo e CampoPresenteTransacao.',
+      drop1Text:      'Clique ou arraste o arquivo de <strong>definição de campos</strong> aqui',
+      step2Title:     'Planilha de Massa de Dados',
+      step2Tip:       'A planilha de casos — os cabeçalhos devem corresponder ao <strong>NomeCampo</strong> da definição de campos.',
+      drop2Text:      'Clique ou arraste o arquivo de <strong>massa de dados</strong> aqui',
+      step3Title:     'Gerar Layout Posicional',
+      btnGerar:       'Gerar Layout',
+      btnDownload:    'Baixar Arquivo .txt',
+      btnCopiar:      'Copiar',
+      statCampos:     'Campos',
+      statRegistros:  'Registros',
+      statTamanho:    'Tam. Linha (bytes)',
+      statTruncados:  'Truncamentos',
+      step4Title:      'Gerar Comandos cURL',
+      step4Tip:        'Gera um comando <code>curl</code> por registro da planilha de dados, enviando cada transação como JSON para o endpoint configurado.',
+      authSectionTitle:'Autenticação',
+      txSectionTitle:  'Transação',
+      labelAuthUrl:    'URL de Autenticação',
+      labelUsername:   'Usuário',
+      labelPassword:   'Senha',
+      btnTestarAuth:   'Testar Autenticação',
+      authStatusNone:  'Não autenticado',
+      authStatusOk:    (p) => `✅ Token obtido (${p}...)`,
+      authStatusErr:   '❌ Falha na autenticação',
+      authStatusLoading:'⏳ Autenticando...',
+      labelInstitution:'Institution Acronym',
+      labelEventType:  'Event Type Code',
+      labelUrl:        'URL da Transação',
+      btnGerarCurl:   'Gerar cURL',
+      btnDownloadSh:  'Baixar .sh  (Linux / Mac / Git Bash)',
+      btnDownloadPs1: 'Baixar .ps1  (Windows PowerShell)',
+      btnDownloadBat: 'Baixar .bat  (duplo clique no Windows)',
+      btnCopiarCurl:  'Copiar',
+      statCurlRegistros:'Registros',
+      statCurlCampos: 'Campos Mapeados',
+      copied:         '✔ Copiado!',
+      msgIniciando:   '▶ Iniciando geração...',
+      msgCamposReg:   (c, r) => `   Campos: ${c}  |  Registros: ${r}`,
+      msgTamLinha:    (t) => `   Tamanho total da linha: ${t} posições`,
+      msgAusentes:    '⚠ Campos da definição sem coluna nos dados (preenchidos com espaço):',
+      msgGeradas:     (n) => `✔ ${n} linha(s) gerada(s) com sucesso.`,
+      msgTruncados:   (n) => `⚠ ${n} campo(s) truncado(s).`,
+      msgOmitidas:    (n) => `\n\n... (${n} linha(s) adicionais omitidas na prévia)`,
+      msgCurlIniciando: '▶ Iniciando geração dos comandos cURL...',
+      msgCurlMapeados:  (n) => `   Campos mapeados por linha: ${n}`,
+      msgCurlGerados:   (n) => `✔ ${n} comando(s) cURL gerado(s) com sucesso.`,
+      msgCurlOmitidos:  (n) => `\n\n... (${n} comando(s) adicionais omitidos na prévia)`,
+      errSemDados:    'Planilha sem dados.',
+      errEntrada:     'Coluna "Entrada" não encontrada.',
+      errNome:        'Coluna "NomeCampo" não encontrada.',
+      errTamanho:     'Coluna "TamanhoCampo" não encontrada.',
+      errSemCampos:   'Nenhum campo com Entrada = S encontrado.',
+      errDadosVazios: 'Planilha de dados vazia.',
+      okCampos:       (n, aba) => `✅ ${n} campos carregados da aba "${aba}"`,
+      okDados:        (n) => `✅ ${n} registro(s) carregados`,
+      previewFiltro:  'Campos filtrados (Entrada = S, CampoPresenteTransacao = S)',
+      previewTamTotal:'Tamanho total',
+      previewPosicoes:'posições',
+      previewDados:   'Prévia dos dados (primeiras 3 linhas)',
+      previewDir:     '← Direita',
+      previewEsq:     'Esquerda →',
+      guideSteps: [
+        { title: 'Prepare a planilha de definição de campos',
+          desc:  'Use o arquivo <code>evento_event_transfin_vD.xlsx</code>. Certifique-se de que a aba se chama <code>Campos Entrada</code> e contém as colunas: <code>Entrada</code>, <code>NomeCampo</code>, <code>TamanhoCampo</code>, <code>AlinhamentoCampo</code>, <code>TipoCampo</code> e <code>CampoPresenteTransacao</code>. Cabeçalhos na linha 2, dados a partir da linha 3.' },
+        { title: 'Carregue a definição de campos (Passo 1)',
+          desc:  'Clique ou arraste o arquivo de definição. A ferramenta lê campos com <code>Entrada = S</code> e <code>CampoPresenteTransacao = S</code>. Uma prévia dos campos filtrados é exibida.' },
+        { title: 'Prepare a planilha de massa de dados',
+          desc:  'Crie uma planilha onde cada linha represente um registro. Os cabeçalhos devem ser idênticos aos valores de <code>NomeCampo</code> da definição. Campos ausentes serão preenchidos com espaços no layout posicional.' },
+        { title: 'Carregue a massa de dados (Passo 2)',
+          desc:  'Clique ou arraste o arquivo de dados. Uma prévia das primeiras linhas é exibida para confirmação.' },
+        { title: 'Gere o layout posicional (Passo 3)',
+          desc:  'Clique em <code>⚙️ Gerar Layout</code>. Cada registro vira uma linha de comprimento fixo, com cada campo ocupando exatamente o número de posições definido. Alinhamento: <code>D</code> = direita, outros = esquerda. Baixe o <code>.txt</code> ou copie o conteúdo.' },
+        { title: 'Gere os comandos cURL (Passo 4)',
+          desc:  'Preencha <code>Institution Acronym</code>, <code>Event Type Code</code> e a URL do endpoint. Clique em <code>🌐 Gerar cURL</code>. Cada linha de dados vira um comando <code>curl</code> com o payload JSON completo. Baixe o arquivo <code>.sh</code> ou copie para executar manualmente.' },
+      ],
+      btnEnviar:          'Enviar Transações',
+      btnParar:           'Parar',
+      statEnviados:       'Enviados',
+      statEnvioSucesso:   'Sucesso',
+      statEnvioFalha:     'Falha',
+      sendTitle:          '🚀 Envio Direto via Browser',
+      corsWarning:        '⚠ <strong>Atenção CORS:</strong> O browser só permite chamadas cross-origin se o servidor autorizar via <code>Access-Control-Allow-Origin</code>. Se a requisição falhar com erro de rede, use o arquivo <code>.sh</code> gerado acima e execute no terminal.',
+      msgEnvioIniciando:  (n) => `▶ Iniciando envio de ${n} registro(s)...`,
+      msgEnvioOk:         (i, s) => `✔ #${i}: HTTP ${s}`,
+      msgEnvioHttpErr:    (i, s) => `⚠ #${i}: HTTP ${s} (erro do servidor)`,
+      msgEnvioFetchErr:   (i, m) => `✗ #${i}: ${m}`,
+      msgEnvioCors:       'Erro de rede (possível bloqueio CORS). Verifique o console do browser.',
+      msgEnvioParado:     '⏹ Envio interrompido pelo usuário.',
+      msgEnvioFim:        (ok, fail) => `Concluído — ✔ ${ok} sucesso(s)  ✗ ${fail} falha(s).`,
+      guideNote: '💡 <strong>Dica:</strong> O campo <code>recordCreationDate</code> é preenchido automaticamente com o timestamp atual. Para <code>transactionDate</code> e demais campos de data, use o valor da planilha de dados. Campos numéricos do template são convertidos para número automaticamente.'
+    },
+
+    en: {
+      headerTitle:    'Positional Layout Generator',
+      headerSubtitle: 'Generates fixed-width load files and cURL commands from Excel spreadsheets',
+      guideTitle:     'How to use',
+      step1Title:     'Field Definition Spreadsheet',
+      step1Tip:       'File <strong>evento_event_transfin_vD.xlsx</strong> (or similar) — sheet <strong>Campos Entrada</strong>, with columns: Entrada, NomeCampo, TamanhoCampo, AlinhamentoCampo, TipoCampo and CampoPresenteTransacao.',
+      drop1Text:      'Click or drag the <strong>field definition</strong> file here',
+      step2Title:     'Data Spreadsheet',
+      step2Tip:       'The test case spreadsheet — column headers must match the <strong>NomeCampo</strong> values from the field definition.',
+      drop2Text:      'Click or drag the <strong>data</strong> file here',
+      step3Title:     'Generate Positional Layout',
+      btnGerar:       'Generate Layout',
+      btnDownload:    'Download .txt File',
+      btnCopiar:      'Copy',
+      statCampos:     'Fields',
+      statRegistros:  'Records',
+      statTamanho:    'Line Size (bytes)',
+      statTruncados:  'Truncations',
+      step4Title:      'Generate cURL Commands',
+      step4Tip:        'Generates one <code>curl</code> command per record from the data spreadsheet, sending each transaction as JSON to the configured endpoint.',
+      authSectionTitle:'Authentication',
+      txSectionTitle:  'Transaction',
+      labelAuthUrl:    'Authentication URL',
+      labelUsername:   'Username',
+      labelPassword:   'Password',
+      btnTestarAuth:   'Test Authentication',
+      authStatusNone:  'Not authenticated',
+      authStatusOk:    (p) => `✅ Token obtained (${p}...)`,
+      authStatusErr:   '❌ Authentication failed',
+      authStatusLoading:'⏳ Authenticating...',
+      labelInstitution:'Institution Acronym',
+      labelEventType:  'Event Type Code',
+      labelUrl:        'Transaction URL',
+      btnGerarCurl:   'Generate cURL',
+      btnDownloadSh:  'Download .sh  (Linux / Mac / Git Bash)',
+      btnDownloadPs1: 'Download .ps1  (Windows PowerShell)',
+      btnDownloadBat: 'Download .bat  (double-click on Windows)',
+      btnCopiarCurl:  'Copy',
+      statCurlRegistros:'Records',
+      statCurlCampos: 'Mapped Fields',
+      copied:         '✔ Copied!',
+      msgIniciando:   '▶ Starting generation...',
+      msgCamposReg:   (c, r) => `   Fields: ${c}  |  Records: ${r}`,
+      msgTamLinha:    (t) => `   Total line size: ${t} positions`,
+      msgAusentes:    '⚠ Fields defined but missing from data (filled with spaces):',
+      msgGeradas:     (n) => `✔ ${n} line(s) generated successfully.`,
+      msgTruncados:   (n) => `⚠ ${n} field(s) truncated.`,
+      msgOmitidas:    (n) => `\n\n... (${n} additional line(s) omitted from preview)`,
+      msgCurlIniciando: '▶ Starting cURL command generation...',
+      msgCurlMapeados:  (n) => `   Fields mapped per record: ${n}`,
+      msgCurlGerados:   (n) => `✔ ${n} cURL command(s) generated successfully.`,
+      msgCurlOmitidos:  (n) => `\n\n... (${n} additional command(s) omitted from preview)`,
+      errSemDados:    'Spreadsheet has no data.',
+      errEntrada:     'Column "Entrada" not found.',
+      errNome:        'Column "NomeCampo" not found.',
+      errTamanho:     'Column "TamanhoCampo" not found.',
+      errSemCampos:   'No fields with Entrada = S found.',
+      errDadosVazios: 'Data spreadsheet is empty.',
+      okCampos:       (n, aba) => `✅ ${n} fields loaded from sheet "${aba}"`,
+      okDados:        (n) => `✅ ${n} record(s) loaded`,
+      previewFiltro:  'Filtered fields (Entrada = S, CampoPresenteTransacao = S)',
+      previewTamTotal:'Total size',
+      previewPosicoes:'positions',
+      previewDados:   'Data preview (first 3 rows)',
+      previewDir:     '← Right',
+      previewEsq:     'Left →',
+      guideSteps: [
+        { title: 'Prepare the field definition spreadsheet',
+          desc:  'Use the file <code>evento_event_transfin_vD.xlsx</code>. Make sure the sheet is named <code>Campos Entrada</code> with columns: <code>Entrada</code>, <code>NomeCampo</code>, <code>TamanhoCampo</code>, <code>AlinhamentoCampo</code>, <code>TipoCampo</code> and <code>CampoPresenteTransacao</code>. Headers on row 2, data from row 3.' },
+        { title: 'Load the field definition (Step 1)',
+          desc:  'Click or drag the definition file. The tool reads fields where <code>Entrada = S</code> and <code>CampoPresenteTransacao = S</code>. A preview of the filtered fields is shown.' },
+        { title: 'Prepare the data spreadsheet',
+          desc:  'Create a spreadsheet where each row is a record. Column headers must exactly match the <code>NomeCampo</code> values from the definition. Missing fields will be space-padded in the positional layout.' },
+        { title: 'Load the data (Step 2)',
+          desc:  'Click or drag the data file. A preview of the first rows is displayed for confirmation.' },
+        { title: 'Generate the positional layout (Step 3)',
+          desc:  'Click <code>⚙️ Generate Layout</code>. Each record becomes a fixed-length line with each field occupying exactly its defined size. Alignment: <code>D</code> = right, others = left. Download the <code>.txt</code> or copy the content.' },
+        { title: 'Generate cURL commands (Step 4)',
+          desc:  'Fill in <code>Institution Acronym</code>, <code>Event Type Code</code> and the endpoint URL. Click <code>🌐 Generate cURL</code>. Each data row becomes a <code>curl</code> command with a complete JSON payload. Download as <code>.sh</code> or copy to run manually.' },
+      ],
+      btnEnviar:          'Send Transactions',
+      btnParar:           'Stop',
+      statEnviados:       'Sent',
+      statEnvioSucesso:   'Success',
+      statEnvioFalha:     'Failed',
+      sendTitle:          '🚀 Direct Browser Send',
+      corsWarning:        '⚠ <strong>CORS Notice:</strong> The browser only allows cross-origin calls if the server sets <code>Access-Control-Allow-Origin</code>. If the request fails with a network error, use the generated <code>.sh</code> file and run it from the terminal instead.',
+      msgEnvioIniciando:  (n) => `▶ Starting send of ${n} record(s)...`,
+      msgEnvioOk:         (i, s) => `✔ #${i}: HTTP ${s}`,
+      msgEnvioHttpErr:    (i, s) => `⚠ #${i}: HTTP ${s} (server error)`,
+      msgEnvioFetchErr:   (i, m) => `✗ #${i}: ${m}`,
+      msgEnvioCors:       'Network error (possible CORS block). Check the browser console.',
+      msgEnvioParado:     '⏹ Send stopped by user.',
+      msgEnvioFim:        (ok, fail) => `Done — ✔ ${ok} success  ✗ ${fail} failed.`,
+      guideNote: '💡 <strong>Tip:</strong> The <code>recordCreationDate</code> field is auto-filled with the current timestamp. For <code>transactionDate</code> and other date fields, the value from the data spreadsheet is used. Numeric template fields are automatically type-cast to numbers.'
+    },
+
+    es: {
+      headerTitle:    'Generador de Layout Posicional',
+      headerSubtitle: 'Genera archivos de carga de ancho fijo y comandos cURL a partir de hojas de cálculo Excel',
+      guideTitle:     'Cómo utilizar',
+      step1Title:     'Hoja de Definición de Campos',
+      step1Tip:       'Archivo <strong>evento_event_transfin_vD.xlsx</strong> (o similar) — hoja <strong>Campos Entrada</strong>, con columnas: Entrada, NomeCampo, TamanhoCampo, AlinhamentoCampo, TipoCampo y CampoPresenteTransacao.',
+      drop1Text:      'Haga clic o arrastre el archivo de <strong>definición de campos</strong> aquí',
+      step2Title:     'Hoja de Masa de Datos',
+      step2Tip:       'La hoja de casos — los encabezados deben coincidir con los valores de <strong>NomeCampo</strong> de la definición.',
+      drop2Text:      'Haga clic o arrastre el archivo de <strong>masa de datos</strong> aquí',
+      step3Title:     'Generar Layout Posicional',
+      btnGerar:       'Generar Layout',
+      btnDownload:    'Descargar Archivo .txt',
+      btnCopiar:      'Copiar',
+      statCampos:     'Campos',
+      statRegistros:  'Registros',
+      statTamanho:    'Tam. Línea (bytes)',
+      statTruncados:  'Truncamientos',
+      step4Title:      'Generar Comandos cURL',
+      step4Tip:        'Genera un comando <code>curl</code> por registro de la hoja de datos, enviando cada transacción como JSON al endpoint configurado.',
+      authSectionTitle:'Autenticación',
+      txSectionTitle:  'Transacción',
+      labelAuthUrl:    'URL de Autenticación',
+      labelUsername:   'Usuario',
+      labelPassword:   'Contraseña',
+      btnTestarAuth:   'Probar Autenticación',
+      authStatusNone:  'No autenticado',
+      authStatusOk:    (p) => `✅ Token obtenido (${p}...)`,
+      authStatusErr:   '❌ Fallo de autenticación',
+      authStatusLoading:'⏳ Autenticando...',
+      labelInstitution:'Institution Acronym',
+      labelEventType:  'Event Type Code',
+      labelUrl:        'URL de Transacción',
+      btnGerarCurl:   'Generar cURL',
+      btnDownloadSh:  'Descargar .sh  (Linux / Mac / Git Bash)',
+      btnDownloadPs1: 'Descargar .ps1  (Windows PowerShell)',
+      btnDownloadBat: 'Descargar .bat  (doble clic en Windows)',
+      btnCopiarCurl:  'Copiar',
+      statCurlRegistros:'Registros',
+      statCurlCampos: 'Campos Mapeados',
+      copied:         '✔ ¡Copiado!',
+      msgIniciando:   '▶ Iniciando generación...',
+      msgCamposReg:   (c, r) => `   Campos: ${c}  |  Registros: ${r}`,
+      msgTamLinha:    (t) => `   Tamaño total de línea: ${t} posiciones`,
+      msgAusentes:    '⚠ Campos definidos pero ausentes en los datos (rellenos con espacios):',
+      msgGeradas:     (n) => `✔ ${n} línea(s) generada(s) con éxito.`,
+      msgTruncados:   (n) => `⚠ ${n} campo(s) truncado(s).`,
+      msgOmitidas:    (n) => `\n\n... (${n} línea(s) adicional(es) omitida(s) en vista previa)`,
+      msgCurlIniciando: '▶ Iniciando generación de comandos cURL...',
+      msgCurlMapeados:  (n) => `   Campos mapeados por registro: ${n}`,
+      msgCurlGerados:   (n) => `✔ ${n} comando(s) cURL generado(s) con éxito.`,
+      msgCurlOmitidos:  (n) => `\n\n... (${n} comando(s) adicional(es) omitido(s) en vista previa)`,
+      errSemDados:    'La hoja de cálculo no tiene datos.',
+      errEntrada:     'Columna "Entrada" no encontrada.',
+      errNome:        'Columna "NomeCampo" no encontrada.',
+      errTamanho:     'Columna "TamanhoCampo" no encontrada.',
+      errSemCampos:   'No se encontraron campos con Entrada = S.',
+      errDadosVazios: 'La hoja de datos está vacía.',
+      okCampos:       (n, aba) => `✅ ${n} campos cargados de la hoja "${aba}"`,
+      okDados:        (n) => `✅ ${n} registro(s) cargado(s)`,
+      previewFiltro:  'Campos filtrados (Entrada = S, CampoPresenteTransacao = S)',
+      previewTamTotal:'Tamaño total',
+      previewPosicoes:'posiciones',
+      previewDados:   'Vista previa de datos (primeras 3 filas)',
+      previewDir:     '← Derecha',
+      previewEsq:     'Izquierda →',
+      guideSteps: [
+        { title: 'Prepare la hoja de definición de campos',
+          desc:  'Use el archivo <code>evento_event_transfin_vD.xlsx</code>. Asegúrese de que la hoja se llame <code>Campos Entrada</code> y contenga las columnas: <code>Entrada</code>, <code>NomeCampo</code>, <code>TamanhoCampo</code>, <code>AlinhamentoCampo</code>, <code>TipoCampo</code> y <code>CampoPresenteTransacao</code>. Encabezados en fila 2, datos desde fila 3.' },
+        { title: 'Cargue la definición de campos (Paso 1)',
+          desc:  'Haga clic o arrastre el archivo de definición. La herramienta lee campos con <code>Entrada = S</code> y <code>CampoPresenteTransacao = S</code>. Se muestra una vista previa de los campos filtrados.' },
+        { title: 'Prepare la hoja de masa de datos',
+          desc:  'Cree una hoja donde cada fila sea un registro. Los encabezados deben coincidir exactamente con los valores de <code>NomeCampo</code>. Los campos ausentes se rellenarán con espacios en el layout posicional.' },
+        { title: 'Cargue los datos (Paso 2)',
+          desc:  'Haga clic o arrastre el archivo de datos. Se muestra una vista previa de las primeras filas.' },
+        { title: 'Genere el layout posicional (Paso 3)',
+          desc:  'Haga clic en <code>⚙️ Generar Layout</code>. Cada registro se convierte en una línea de longitud fija. Alineación: <code>D</code> = derecha, otros = izquierda. Descargue el <code>.txt</code> o copie el contenido.' },
+        { title: 'Genere los comandos cURL (Paso 4)',
+          desc:  'Complete <code>Institution Acronym</code>, <code>Event Type Code</code> y la URL. Haga clic en <code>🌐 Generar cURL</code>. Cada fila de datos se convierte en un comando <code>curl</code> con payload JSON completo. Descargue el <code>.sh</code> o copie para ejecutar manualmente.' },
+      ],
+      btnEnviar:          'Enviar Transacciones',
+      btnParar:           'Detener',
+      statEnviados:       'Enviados',
+      statEnvioSucesso:   'Éxito',
+      statEnvioFalha:     'Fallidos',
+      sendTitle:          '🚀 Envío Directo desde el Browser',
+      corsWarning:        '⚠ <strong>Aviso CORS:</strong> El browser solo permite llamadas cross-origin si el servidor autoriza mediante <code>Access-Control-Allow-Origin</code>. Si la solicitud falla con error de red, use el archivo <code>.sh</code> generado arriba y ejecútelo desde el terminal.',
+      msgEnvioIniciando:  (n) => `▶ Iniciando envío de ${n} registro(s)...`,
+      msgEnvioOk:         (i, s) => `✔ #${i}: HTTP ${s}`,
+      msgEnvioHttpErr:    (i, s) => `⚠ #${i}: HTTP ${s} (error del servidor)`,
+      msgEnvioFetchErr:   (i, m) => `✗ #${i}: ${m}`,
+      msgEnvioCors:       'Error de red (posible bloqueo CORS). Revise la consola del browser.',
+      msgEnvioParado:     '⏹ Envío detenido por el usuario.',
+      msgEnvioFim:        (ok, fail) => `Finalizado — ✔ ${ok} éxito(s)  ✗ ${fail} fallo(s).`,
+      guideNote: '💡 <strong>Consejo:</strong> El campo <code>recordCreationDate</code> se rellena automáticamente con el timestamp actual. Para <code>transactionDate</code> y otros campos de fecha, se usa el valor de la hoja de datos. Los campos numéricos del template se convierten automáticamente a número.'
+    }
+  };
+
+  // ─── Template CURL: define quais campos são numéricos ─────────────
+  const CURL_NUMERIC_FIELDS = new Set([
+    'atcCard', 'cashbackAmount', 'authIndicator', 'mcc', 'external_1_scr',
+    'transactionCurrencyConversionRate', 'acquirerCountry', 'atcHost',
+    'cardDelinquentAmount', 'model_scr', 'availableCredit', 'posSecurity',
+    'posOffPremises', 'merchantCountryCode', 'posCardCapture', 'merchantState',
+    'gmtOffset', 'cardMerchandiseBalance', 'transactionAmount',
+    'transactionCurrencyCode', 'cardCashBalance', 'posUnattended'
+  ]);
+
+  // Todos os campos do map (ordem definida no template)
+  const CURL_MAP_FIELDS = [
+    'atcCard','cedula','cashbackAmount','authIndicator','mcc','atmOwner',
+    'external_1_scr','merchantName','transactionCategory','customerAcctNumber',
+    'customerIdFromHeader','transactionCurrencyConversionRate','acquirerCountry',
+    'acquirerId','atcHost','terminalVerificationResults','pan','cvv2Present',
+    'tenant','cardDelinquentAmount','model_scr','availableCredit','merchantCity',
+    'posSecurity','authPostFlag','realtimeRequest','transactionId','terminalType',
+    'posOffPremises','secondFactorAuthCode','merchantCountryCode','authResponseCode',
+    'posConditionCode','clientIdFromHeader','posCardCapture','terminalId',
+    'merchantState','gmtOffset','cardMerchandiseBalance','onUsMerchantId',
+    'terminalEntryCapability','transactionAmount','recordCreationDate',
+    'transactionCurrencyCode','externalTransactionId','cvvVerifyCode',
+    'authDecisionCode','processorAuthReasonCode','authExpireDateVerify',
+    'transactionDate','transactionType','cardCashBalance','cvv2Response',
+    'cardExpireDate','posEntryMode','customerPresent','posUnattended'
+  ];
+
+  // ─── Estado global ────────────────────────────────────────────────
+  let currentLang     = 'pt';
+  let camposDefinicao = [];
+  let dadosLinhas     = [];
+  let outputTexto     = '';
+  let outputCurl      = '';
+  let authToken       = '';
+  let outputPs1       = '';
+
+  function t(key, ...args) {
+    const val = i18n[currentLang][key];
+    return typeof val === 'function' ? val(...args) : (val ?? key);
+  }
+
+  // ─── Troca de idioma ──────────────────────────────────────────────
+  function setLang(lang) {
+    currentLang = lang;
+    document.documentElement.lang = lang === 'pt' ? 'pt-BR' : lang;
+
+    ['PT','EN','ES'].forEach(l =>
+      document.getElementById('lang' + l).classList.toggle('active', l.toLowerCase() === lang)
+    );
+
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      const val = i18n[lang][key];
+      if (val && typeof val === 'string') el.innerHTML = val;
+    });
+
+    renderGuide();
+  }
+
+  // ─── Guia ─────────────────────────────────────────────────────────
+  function toggleGuide() {
+    const body  = document.getElementById('guideBody');
+    const arrow = document.getElementById('guideArrow');
+    const open  = body.classList.toggle('hidden');
+    arrow.classList.toggle('open', !open);
+    if (!open) renderGuide();
+  }
+
+  function renderGuide() {
+    const steps = i18n[currentLang].guideSteps;
+    document.getElementById('guideSteps').innerHTML = steps.map((s, i) => `
+      <div class="guide-step">
+        <div class="guide-step-num">${i + 1}</div>
+        <div class="guide-step-content">
+          <div class="guide-step-title">${s.title}</div>
+          <div class="guide-step-desc">${s.desc}</div>
+        </div>
+      </div>`).join('');
+    document.getElementById('guideNote').innerHTML = i18n[currentLang].guideNote;
+  }
+
+  // ─── Drag & Drop ──────────────────────────────────────────────────
+  ['dropCampos', 'dropDados'].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener('dragover',  e => { e.preventDefault(); el.classList.add('drag-over'); });
+    el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+    el.addEventListener('drop', e => {
+      e.preventDefault();
+      el.classList.remove('drag-over');
+      const inp = el.querySelector('input[type=file]');
+      inp.files = e.dataTransfer.files;
+      inp.dispatchEvent(new Event('change'));
+    });
+  });
+
+  // ─── Leitura: arquivo de CAMPOS ───────────────────────────────────
+  document.getElementById('fileCampos').addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    document.getElementById('nameCampos').textContent = file.name;
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const nomeAba = wb.SheetNames.find(n =>
+          n.trim().toLowerCase() === 'campos entrada'
+        ) || wb.SheetNames[0];
+
+        const ws  = wb.Sheets[nomeAba];
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+        if (raw.length < 2) throw new Error(t('errSemDados'));
+
+        const header = raw[1].map(h => String(h).trim());
+        const idx = {
+          entrada:                findCol(header, 'Entrada'),
+          nomeCampo:              findCol(header, 'NomeCampo'),
+          tamanho:                findCol(header, 'TamanhoCampo'),
+          alinhamento:            findCol(header, 'AlinhamentoCampo'),
+          tipo:                   findCol(header, 'TipoCampo'),
+          campoPresenteTransacao: findCol(header, 'CampoPresenteTransacao'),
+        };
+
+        if (idx.entrada < 0)   throw new Error(t('errEntrada'));
+        if (idx.nomeCampo < 0) throw new Error(t('errNome'));
+        if (idx.tamanho < 0)   throw new Error(t('errTamanho'));
+
+        camposDefinicao = raw.slice(2)
+          .filter(r => String(r[idx.entrada]).trim().toUpperCase() === 'S')
+          .filter(r => String(r[idx.nomeCampo]).trim() !== '')
+          .filter(r => idx.campoPresenteTransacao < 0 || String(r[idx.campoPresenteTransacao]).trim().toUpperCase() === 'S')
+          .map(r => ({
+            nome:        String(r[idx.nomeCampo]).trim(),
+            tamanho:     parseInt(r[idx.tamanho]) || 0,
+            alinhamento: idx.alinhamento >= 0 ? String(r[idx.alinhamento]).trim().toUpperCase() : 'E',
+            tipo:        idx.tipo >= 0 ? String(r[idx.tipo]).trim().toLowerCase() : 'texto',
+          }));
+
+        if (camposDefinicao.length === 0) throw new Error(t('errSemCampos'));
+
+        setStatus('statusCampos', t('okCampos', camposDefinicao.length, nomeAba), 'success');
+        renderPreviewCampos();
+        verificarBotoes();
+      } catch (err) {
+        setStatus('statusCampos', '❌ ' + err.message, 'error');
+        camposDefinicao = [];
+        verificarBotoes();
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  // ─── Leitura: arquivo de DADOS ────────────────────────────────────
+  document.getElementById('fileDados').addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    document.getElementById('nameDados').textContent = file.name;
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb  = XLSX.read(e.target.result, { type: 'array' });
+        const ws  = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+        if (raw.length === 0) throw new Error(t('errDadosVazios'));
+
+        dadosLinhas = raw;
+        setStatus('statusDados', t('okDados', raw.length), 'success');
+        renderPreviewDados(raw);
+        verificarBotoes();
+      } catch (err) {
+        setStatus('statusDados', '❌ ' + err.message, 'error');
+        dadosLinhas = [];
+        verificarBotoes();
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  // ─── Geração: layout posicional ───────────────────────────────────
+  function gerarLayout() {
+    const log    = document.getElementById('logBox');
+    const output = document.getElementById('outputArea');
+
+    log.innerHTML = '';
+    output.textContent = '';
+    show('logBox'); show('progressWrap'); show('statsGrid');
+    hide('btnDownload'); hide('btnCopiar');
+
+    addLog('logBox', 'info', t('msgIniciando'));
+    addLog('logBox', 'info', t('msgCamposReg', camposDefinicao.length, dadosLinhas.length));
+
+    const tamanhoLinha = camposDefinicao.reduce((s, c) => s + c.tamanho, 0);
+    addLog('logBox', 'info', t('msgTamLinha', tamanhoLinha));
+
+    const colsDados = Object.keys(dadosLinhas[0] || {});
+    const ausentes  = camposDefinicao.filter(c => !colsDados.some(k => k.trim() === c.nome));
+    if (ausentes.length > 0) {
+      addLog('logBox', 'warn', t('msgAusentes'));
+      ausentes.forEach(c => addLog('logBox', 'warn', `   • ${c.nome} [${c.tamanho}]`));
+    }
+
+    let truncCount = 0;
+    const linhas   = [];
+    const total    = dadosLinhas.length;
+
+    dadosLinhas.forEach((row, idx) => {
+      let linha = '';
+      camposDefinicao.forEach(campo => {
+        let val = row[campo.nome] === undefined || row[campo.nome] === null ? '' : String(row[campo.nome]);
+        if (val.length > campo.tamanho) { val = val.substring(0, campo.tamanho); truncCount++; }
+        linha += campo.alinhamento === 'D'
+          ? val.padStart(campo.tamanho, ' ')
+          : val.padEnd(campo.tamanho, ' ');
+      });
+      linhas.push(linha);
+      if ((idx + 1) % Math.max(1, Math.floor(total / 20)) === 0 || idx === total - 1) {
+        document.getElementById('progressBar').style.width = Math.round(((idx+1)/total)*100) + '%';
+      }
+    });
+
+    outputTexto = linhas.join('\n');
+
+    document.getElementById('statCampos').textContent    = camposDefinicao.length;
+    document.getElementById('statRegistros').textContent = linhas.length;
+    document.getElementById('statTamanho').textContent   = tamanhoLinha;
+    document.getElementById('statTruncados').textContent = truncCount;
+
+    addLog('logBox', 'ok', t('msgGeradas', linhas.length));
+    if (truncCount > 0) addLog('logBox', 'warn', t('msgTruncados', truncCount));
+
+    show('outputArea');
+    output.textContent = linhas.slice(0, 50).join('\n') +
+      (linhas.length > 50 ? t('msgOmitidas', linhas.length - 50) : '');
+
+    show('btnDownload'); show('btnCopiar');
+  }
+
+  // ─── Autenticação ─────────────────────────────────────────────────
+  function getAuthInputs() {
+    return {
+      authUrl:     document.getElementById('inputAuthUrl').value.trim(),
+      username:    document.getElementById('inputUsername').value.trim(),
+      password:    document.getElementById('inputPassword').value.trim(),
+      institution: document.getElementById('inputInstitution').value.trim() || 'TUYA',
+    };
+  }
+
+  function setAuthStatus(state, token) {
+    const el = document.getElementById('authStatus');
+    el.className = 'auth-status ' + state;
+    if (state === 'success') {
+      el.textContent = t('authStatusOk', token.slice(0, 12));
+    } else if (state === 'error') {
+      el.textContent = t('authStatusErr');
+    } else if (state === 'loading') {
+      el.textContent = t('authStatusLoading');
+    } else {
+      el.textContent = t('authStatusNone');
+    }
+  }
+
+  async function fetchToken() {
+    const { authUrl, username, password, institution } = getAuthInputs();
+    const resp = await fetch(authUrl, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ username, password, institutionAcronym: institution }),
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    const token = data.token ?? data.accessToken ?? data.access_token ?? data.id_token ?? '';
+    if (!token) throw new Error('Token não encontrado na resposta');
+    return token;
+  }
+
+  async function testarAuth() {
+    setAuthStatus('loading');
+    authToken = '';
+    try {
+      authToken = await fetchToken();
+      setAuthStatus('success', authToken);
+    } catch (err) {
+      setAuthStatus('error');
+      console.error('Auth error:', err);
+    }
+  }
+
+  // ─── Helper: monta o payload de uma linha ────────────────────────
+  function buildPayload(row, institution, eventType, now) {
+    const map = {};
+    CURL_MAP_FIELDS.forEach(field => {
+      if (field === 'recordCreationDate') { map[field] = now; return; }
+      const rawVal = row[field];
+      const hasVal = rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== '';
+      if (CURL_NUMERIC_FIELDS.has(field)) {
+        const num = parseFloat(hasVal ? String(rawVal).trim() : '');
+        map[field] = isNaN(num) ? 0 : num;
+      } else {
+        map[field] = hasVal ? String(rawVal).trim() : '';
+      }
+    });
+    return { institutionAcronym: institution, eventTypeCode: eventType, map };
+  }
+
+  // ─── Geração: comandos cURL ───────────────────────────────────────
+  function gerarCurl() {
+    const { authUrl, username, password, institution } = getAuthInputs();
+    const eventType = document.getElementById('inputEventType').value.trim() || 'TUYTRANMON';
+    const url       = document.getElementById('inputUrl').value.trim();
+    const now       = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+
+    const log    = document.getElementById('logBoxCurl');
+    const output = document.getElementById('outputAreaCurl');
+
+    log.innerHTML = '';
+    output.textContent = '';
+    show('logBoxCurl'); show('progressWrapCurl'); show('statsGridCurl');
+    hide('btnDownloadSh'); hide('btnDownloadPs1'); hide('btnDownloadBat'); hide('btnCopiarCurl');
+
+    addLog('logBoxCurl', 'info', t('msgCurlIniciando'));
+
+    const rowKeys  = Object.keys(dadosLinhas[0] || {});
+    const mapeados = CURL_MAP_FIELDS.filter(f => f !== 'recordCreationDate' && rowKeys.includes(f));
+    addLog('logBoxCurl', 'info', t('msgCurlMapeados', mapeados.length + 1));
+
+    // Bloco de autenticação para o .sh
+    const authPayload = JSON.stringify({ username, password, institutionAcronym: institution })
+      .replace(/'/g, "'\\''");
+    const authBlock = [
+      '#!/bin/bash',
+      '',
+      '# ── Autenticação ──────────────────────────────────────────────',
+      `AUTH_TOKEN=$(curl -sf --location '${authUrl}' \\`,
+      `  --header 'Content-Type: application/json' \\`,
+      `  --data '${authPayload}' \\`,
+      `  | grep -o '"token":"[^"]*"' | sed 's/"token":"//;s/"//')`,
+      '',
+      'if [ -z "$AUTH_TOKEN" ]; then',
+      '  echo "Erro: token não encontrado na resposta de autenticação." >&2',
+      '  exit 1',
+      'fi',
+      'echo "✔ Autenticado."',
+      '',
+      '# ── Transações ────────────────────────────────────────────────',
+    ].join('\n');
+
+    const comandos = [];
+    const total    = dadosLinhas.length;
+
+    dadosLinhas.forEach((row, idx) => {
+      const payload = JSON.stringify(buildPayload(row, institution, eventType, now));
+      const safe    = payload.replace(/'/g, "'\\''");
+      const cmd = [
+        `curl --location '${url}' \\`,
+        `  --header 'Content-Type: application/json' \\`,
+        `  --header "Authorization: $AUTH_TOKEN" \\`,
+        `  --data '${safe}'`,
+      ].join('\n');
+      comandos.push(cmd);
+
+      if ((idx + 1) % Math.max(1, Math.floor(total / 20)) === 0 || idx === total - 1) {
+        document.getElementById('progressBarCurl').style.width = Math.round(((idx+1)/total)*100) + '%';
+      }
+    });
+
+    outputCurl = authBlock + '\n' + comandos.join('\n\n');
+
+    // ── Gera script PowerShell (.ps1) ──────────────────────────────
+    const ps1AuthBody = JSON.stringify({ username, password, institutionAcronym: institution })
+      .replace(/'/g, "''");  // escapa aspas simples para PS single-quoted strings
+
+    const ps1Lines = [
+      '# Gerado por Gerador de Layout Posicional',
+      '# Execução: powershell -ExecutionPolicy Bypass -File .\\script.ps1',
+      '',
+      '# ── Autenticação ──────────────────────────────────────────────',
+      `$authBody = '${ps1AuthBody}'`,
+      'try {',
+      `    $authResp = Invoke-RestMethod -Method Post -Uri '${authUrl}' \``,
+      "        -ContentType 'application/json' -Body $authBody",
+      '    $AUTH_TOKEN = $authResp.token',
+      '} catch {',
+      "    Write-Error \"Falha na autenticação: $_\"; exit 1",
+      '}',
+      "if (-not $AUTH_TOKEN) { Write-Error 'Token não encontrado na resposta.'; exit 1 }",
+      "Write-Host '✔ Autenticado.'",
+      '$headers = @{ Authorization = $AUTH_TOKEN }',
+      '',
+      '# ── Transações ────────────────────────────────────────────────',
+    ];
+
+    dadosLinhas.forEach((row, idx) => {
+      const payload = JSON.stringify(buildPayload(row, institution, eventType, now))
+        .replace(/'/g, "''");
+      ps1Lines.push(
+        `# Registro ${idx + 1}`,
+        'try {',
+        `    Invoke-RestMethod -Method Post -Uri '${url}' \``,
+        "        -ContentType 'application/json' -Headers $headers \`",
+        `        -Body '${payload}' | Out-Null`,
+        `    Write-Host '#${idx + 1}: OK'`,
+        '} catch {',
+        `    Write-Warning '#${idx + 1}: ' + $_`,
+        '}',
+        '',
+      );
+    });
+
+    outputPs1 = ps1Lines.join('\n');
+
+    document.getElementById('statCurlRegistros').textContent = comandos.length;
+    document.getElementById('statCurlCampos').textContent    = mapeados.length + 1;
+
+    addLog('logBoxCurl', 'ok', t('msgCurlGerados', comandos.length));
+
+    show('outputAreaCurl');
+    output.textContent = (authBlock + '\n\n' + comandos.slice(0, 3).join('\n\n')).trim() +
+      (comandos.length > 3 ? t('msgCurlOmitidos', comandos.length - 3) : '');
+
+    show('btnDownloadSh'); show('btnDownloadPs1'); show('btnDownloadBat'); show('btnCopiarCurl');
+  }
+
+  // ─── Download ─────────────────────────────────────────────────────
+  function downloadArquivo() {
+    baixar(outputTexto, 'layout_posicional_' + hoje() + '.txt', 'text/plain');
+  }
+
+  function downloadSh() {
+    baixar(outputCurl, 'curl_transacoes_' + hoje() + '.sh', 'text/x-sh');
+  }
+
+  function downloadPs1() {
+    baixar(outputPs1, 'curl_transacoes_' + hoje() + '.ps1', 'text/plain');
+  }
+
+  function downloadBat() {
+    // Codifica o PS1 em UTF-16 LE Base64 — formato exigido pelo -EncodedCommand do PowerShell
+    const encoded = ps1ToBase64(outputPs1);
+    const nome    = 'curl_transacoes_' + hoje();
+    const bat = [
+      '@echo off',
+      'chcp 65001 > nul',
+      `title ${nome}`,
+      'color 0A',
+      'echo.',
+      'echo  ============================================================',
+      'echo   Gerador de Layout Posicional ^| Envio de Transacoes',
+      'echo  ============================================================',
+      'echo.',
+      'echo  Autenticando e enviando registros... Aguarde.',
+      'echo.',
+      `powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encoded}`,
+      'echo.',
+      'echo  ============================================================',
+      'echo   Concluido! Pressione qualquer tecla para fechar.',
+      'echo  ============================================================',
+      'pause > nul',
+    ].join('\r\n');
+    baixar(bat, nome + '.bat', 'text/plain');
+  }
+
+  function ps1ToBase64(script) {
+    // PowerShell -EncodedCommand espera Base64 de string UTF-16 LE
+    const bytes = [];
+    for (let i = 0; i < script.length; i++) {
+      const c = script.charCodeAt(i);
+      bytes.push(c & 0xff, (c >> 8) & 0xff);
+    }
+    let bin = '';
+    for (const b of bytes) bin += String.fromCharCode(b);
+    return btoa(bin);
+  }
+
+  function baixar(conteudo, nome, tipo) {
+    const blob = new Blob([conteudo], { type: tipo + ';charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = nome; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function hoje() { return new Date().toISOString().slice(0, 10); }
+
+  // ─── Copiar ───────────────────────────────────────────────────────
+  async function copiarOutput() {
+    await navigator.clipboard.writeText(outputTexto);
+    flash('btnCopiar', 'btnCopiar');
+  }
+
+  async function copiarCurl() {
+    await navigator.clipboard.writeText(outputCurl);
+    flash('btnCopiarCurl', 'btnCopiarCurl');
+  }
+
+  function flash(btnId, i18nKey) {
+    const btn  = document.getElementById(btnId);
+    const span = btn.querySelector('[data-i18n="' + i18nKey + '"]');
+    const orig = span.textContent;
+    span.textContent = t('copied');
+    setTimeout(() => { span.textContent = orig; }, 1500);
+  }
+
+  // ─── Helpers ─────────────────────────────────────────────────────
+  function findCol(headers, name) {
+    const n = name.trim().toLowerCase();
+    return headers.findIndex(h => String(h).trim().toLowerCase() === n);
+  }
+
+  function setStatus(elId, msg, type) {
+    document.getElementById(elId).innerHTML = `<span class="status-pill ${type}">${msg}</span>`;
+  }
+
+  function addLog(boxId, type, msg) {
+    const el   = document.getElementById(boxId);
+    const div  = document.createElement('div');
+    div.className   = 'log-' + type;
+    div.textContent = msg;
+    el.appendChild(div);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function show(id) { document.getElementById(id).classList.remove('hidden'); }
+  function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+  function verificarBotoes() {
+    const temDados  = dadosLinhas.length > 0;
+    const temCampos = camposDefinicao.length > 0;
+    document.getElementById('btnGerar').disabled     = !(temCampos && temDados);
+    document.getElementById('btnGerarCurl').disabled = !temDados;
+  }
+
+  function renderPreviewCampos() {
+    const el = document.getElementById('previewCampos');
+    const tamanhoTotal = camposDefinicao.reduce((s, c) => s + c.tamanho, 0);
+
+    let html = `<div style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong style="font-size:0.85rem;color:#0f3460">${t('previewFiltro')}</strong>
+        <span style="font-size:0.78rem;color:#7a8aa0">${t('previewTamTotal')}: <strong>${tamanhoTotal}</strong> ${t('previewPosicoes')}</span>
+      </div>
+      <div class="fields-preview"><table>
+        <thead><tr><th>#</th><th>NomeCampo</th><th>Tamanho</th><th>Alinhamento</th><th>Tipo</th></tr></thead>
+        <tbody>`;
+
+    camposDefinicao.forEach((c, i) => {
+      html += `<tr>
+        <td>${i+1}</td>
+        <td><strong>${c.nome}</strong></td>
+        <td style="color:#1a56db">${c.tamanho}</td>
+        <td>${c.alinhamento === 'D' ? t('previewDir') : t('previewEsq')}</td>
+        <td>${c.tipo}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table></div></div>`;
+    el.innerHTML = html;
+    show('previewCampos');
+  }
+
+  function renderPreviewDados(rows) {
+    const el = document.getElementById('previewDados');
+    if (!rows || rows.length === 0) return;
+
+    const cols = Object.keys(rows[0]).slice(0, 8);
+    let html = `<div style="margin-top:14px">
+      <strong style="font-size:0.85rem;color:#0f3460">${t('previewDados')}</strong>
+      <div class="fields-preview" style="margin-top:8px"><table>
+        <thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+        <tbody>`;
+
+    rows.slice(0, 3).forEach(row => {
+      html += `<tr>${cols.map(c => `<td>${row[c] ?? ''}</td>`).join('')}</tr>`;
+    });
+
+    html += `</tbody></table></div></div>`;
+    el.innerHTML = html;
+    show('previewDados');
+  }
+</script>
+</body>
+</html>
